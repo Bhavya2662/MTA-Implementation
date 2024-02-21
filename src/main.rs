@@ -53,7 +53,9 @@ fn mta_protocol(a: BigUint, b: BigUint) -> (BigUint, BigUint) {
     let beta = (Q - beta_prime) % Q;
 
     // Bob sends cB to Alice
-    // (Assuming this is just a test case, we skip communication)
+    // Bob would send cB over a secure communication channel.
+    // For this simplified example, we assume they are in the same environment.
+    println!("Bob sends cB to Alice: {}", cb);
 
     // Alice decrypts α' = dec(cB)
     let alpha_prime = decrypt_a(cb);
