@@ -15,6 +15,7 @@ pub struct MessageB {
 
 impl MessageA {
   /// Creates a new `messageA` using Alice's Paillier encryption key.
+  // Alice computes cA = EncryptA(a)
   pub fn a(
     a: &Scalar<Secp256k1>,
     alice_ek: &EncryptionKey,
@@ -43,6 +44,11 @@ impl MessageA {
 }
 
 impl MessageB {
+// Bob selects β′ <– Zn.
+// Bob computes cB = b * cA + EncryptA(β′) = EncryptA(ab+β′).
+// Bob sets additive share β = -β′ mod q.
+
+
   pub fn b(
     b: &Scalar<Secp256k1>,
     alice_ek: &EncryptionKey,
@@ -89,6 +95,9 @@ impl MessageB {
       beta,
     ))
   }
+// Alice decrypts α' = dec(cB).
+// Alice sets α = α′ mod q.
+
 
   pub fn verify_proofs_get_alpha(
     &self,
