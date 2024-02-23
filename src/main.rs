@@ -28,7 +28,7 @@ impl MessageA {
         a: &Scalar<Secp256k1>,
         alice_ek: &EncryptionKey,
     ) -> (Self, BigInt) {
-        let randomness = BigInt::sample_below(&alice_ek);
+        let randomness = BigInt::sample_below(&alice_ek.n);
         let m_a = MessageA::a_with_predefined_randomness(a, alice_ek, &randomness);
         (m_a, randomness)
     }
@@ -61,8 +61,8 @@ impl MessageB {
         alice_ek: &EncryptionKey,
         m_a: MessageA,
     ) -> Result<(Self, Scalar<Secp256k1>, BigInt, BigInt), Error> {
-        let beta_tag = BigInt::sample_below(&alice_ek);
-        let randomness = BigInt::sample_below(&alice_ek);
+        let beta_tag = BigInt::sample_below(&alice_ek.n);
+        let randomness = BigInt::sample_below(&alice_ek.n);
         let (m_b, beta) = MessageB::b_with_predefined_randomness(
             b,
             alice_ek,
