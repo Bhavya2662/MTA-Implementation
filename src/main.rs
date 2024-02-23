@@ -127,15 +127,15 @@ pub(crate) fn generate_init() -> (EncryptionKey, DecryptionKey) {
 }
 
 
-fn mta(alice_input: &Scalar<Secp256k1>, bob_input: &Scalar<Secp256k1>){
+fn mta(alice_input: &Scalar<Secp256k1>, bob_input: &Scalar<Secp256k1>) -> Result<(Scalar<Secp256k1>),(Scalar<Secp256k1>)>{
   let (ek_alice, dk_alice) = generate_init();
   let (m_a, _) = MessageA::a(&alice_input, &ek_alice);
   let (m_b, beta, _, _) = MessageB::b(&bob_input, &ek_alice, m_a).unwrap();
   let alpha = m_b
     .verify_proofs_get_alpha(&dk_alice, &alice_input)
-    .expect("wrong dlog or m_b");
+    .map_err(|e| e.into());
 
-  (alpha, beta)
+  alpha, beta
 }
 // fn main() {
 //   let alice_input = Scalar::<Secp256k1>::random();
