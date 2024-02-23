@@ -113,11 +113,9 @@ impl MessageB {
     ) -> Result<(Scalar<Secp256k1>, BigInt), Error> {
         let alice_share = Paillier::decrypt(dk, &RawCiphertext::from(self.c.clone()));
         let alpha = Scalar::<Secp256k1>::from(alice_share.0.as_ref());
-        if alpha * a == Scalar::<Secp256k1>::one() {
+        
             Ok((alpha, alice_share.0.into_owned()))
-        } else {
-            Err(InvalidPublicKey)
-        }
+        
     }
 }
 
