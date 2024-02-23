@@ -9,6 +9,7 @@ use paillier::{DecryptionKey, EncryptionKey, Paillier, Randomness, RawCiphertext
 use paillier::KeyGeneration;
 use serde::{Deserialize, Serialize};
 use sha2::Sha256;
+use secp256k1::Error::InvalidPublicKey;
 use secp256k1::Error;
 
 // #[derive(Clone, Debug, Serialize, Deserialize)]
@@ -115,7 +116,7 @@ impl MessageB {
         if alpha * a == Scalar::<Secp256k1>::one() {
             Ok((alpha, alice_share.0.into_owned()))
         } else {
-            Err("")
+            Err(InvalidPublicKey)
         }
     }
 }
