@@ -111,15 +111,16 @@ impl MessageB {
         ))
     }
 
-    pub fn verify_proofs_get_alpha(
+    pub fn get_alpha(
         &self,
         dk: &DecryptionKey,
         a: &Scalar<Secp256k1>,
-    ) -> Result<(Scalar<Secp256k1>, BigInt)> {
+    ) -> Result<(Scalar<Secp256k1>, BigNumber)> {
         let alice_share = Paillier::decrypt(dk, &RawCiphertext::from(self.c.clone()));
-        let g = Point::generator();
+        // let g = Point::generator();
+        
         let alpha = Scalar::<Secp256k1>::from(alice_share.0.as_ref());
-        let g_alpha = g * &alpha;
+        // let g_alpha = g * &alpha;
         
             Ok((alpha, alice_share.0.into_owned()))
        
@@ -141,7 +142,7 @@ fn main() {
   let (m_a, _) = MessageA::a(&alice_input, &ek_alice);
   let (m_b, beta, _) = MessageB::b(&bob_input, &ek_alice, m_a).unwrap();
   let alpha = m_b
-      .verify_proofs_get_alpha(&dk_alice, &alice_input)
+      .get_alpha(&dk_alice, &alice_input)
       .expect("wrong dlog or m_b");
 
   let left = alpha.0 + beta;
