@@ -1,6 +1,6 @@
 use curv::arithmetic::traits::Samplable;
 use curv::elliptic::curves::{secp256_k1::Secp256k1, Point, Scalar};
-// use curv::BigInt;
+use curv::BigInt;
 // use paillier::traits::EncryptWithChosenRandomness;
 // use paillier::{Add, Decrypt, Mul};
 // use paillier::{DecryptionKey, EncryptionKey, Paillier, Randomness, RawCiphertext, RawPlaintext};
@@ -15,14 +15,14 @@ use serde::{Deserialize, Serialize};
 use sha2::Sha256;
 use generic_array::{GenericArray, typenum::U32};
 
-fn to_bytes(obj: &Secp256k1) -> Result<Vec<u8>, &'static str> {
+fn to_bytes(obj: &Scalar<Secp256k1>) -> Vec<u8> {
     match obj {
-        Secp256k1::SecretKey(secret) => {
+        Scalar<Secp256k1>::SecretKey(secret) => {
             let mut bytes = secret.as_bytes().to_vec();
             bytes.resize(32, 0); // Pad with zeros to fixed size
             Ok(bytes)
         }
-        Secp256k1::PublicKey(Public(point)) => {
+        Scalar<Secp256k1>::PublicKey(Public(point)) => {
             let mut encoded = [0u8; 65]; // Uncompressed format
             point.encode(&mut encoded, false)?;
             Ok(encoded.to_vec())
@@ -68,7 +68,7 @@ impl MessageA {
         alice_ek: &EncryptionKey,
     ) -> Self {
       
-        let res = alice_ek.encrypt(to_bytes(a), None);
+        let res = alice_ek.encrypt(to_bytes(a).as_ref(), None);
         let (c_a, _)=res.unwrap();
         // let c_a = EncryptionKey::encrypt(
         //     alice_ek,
@@ -110,12 +110,15 @@ impl MessageB {
         // randomness: &BigNumber,
     ) -> Result<(Self, Scalar<Secp256k1>)> {
         let beta_tag = sample_below(&alice_ek.n());
-        let c_beta_tag = alice_ek.encrypt(beta_tag, None);
-        let beta_tag_fe = Scalar::<Secp256k1>::from(beta_tag);
-       
-        let b_bn = b.to_bigint(); // need to be a bignumber
-        let b_c_a = alice_ek.mul(m_a.c, b_bn);
-        let c_b = alice_ek.add(b_c_a, c_beta_tag);
+        let res = alice_ek.encrypt(beta_tag.to_bytes(), None);
+        let (c_beta_tag,_) = res.unwrap();
+        let beta_tag_fe = Scalar::<Secp256k1>::from(beta_tag.to_bigint());
+        let b_byte = to_bytes(b);
+
+        let b_bn = BigNumber::from_slice(b_byte.as_ref()); // need to be a bignumber
+        let res1 = alice_ek.mul(&m_a.c, &b_bn);
+        let b_c_a = res1.unwrap();
+        let c_b = alice_ek.add(&b_c_a, &c_beta_tag);
         let beta = Scalar::<Secp256k1>::zero() - &beta_tag_fe;
 
 
@@ -132,15 +135,15 @@ impl MessageB {
         &self,
         dk: &DecryptionKey,
         a: &Scalar<Secp256k1>,
-    ) -> Result<(Scalar<Secp256k1>, BigNumber)> {
-        let alice_share = dk.decrypt(self.c.clone());
+    ) -> Result<(Scalar<Secp256k1>)> {
+        let alice_share = dk.decrypt(&self.c.clone());
         // let alice_share = Paillier::decrypt(dk, &RawCiphertext::from(self.c.clone()));
         // let g = Point::generator();
         
-        let alpha = Scalar::<Secp256k1>::from(alice_share.as_ref());
+        let alpha = Scalar::<Secp256k1>::from(alice_share.to_bigint());
         // let g_alpha = g * &alpha;
         
-            Ok((alpha, alice_share))
+        alpha
        
     }
 
@@ -148,9 +151,9 @@ impl MessageB {
 
 pub fn generate_init() -> (EncryptionKey, DecryptionKey) {
   
-  let dk = DecryptionKey::random();
-  let sk = res.unwrap();
-  let ek = EncryptionKey::from(&sk);
+  let sk = DecryptionKey::random();
+  let dk = sk.unwrap();
+  let ek = EncryptionKey::from(&dk);
 
   (ek, dk)
 }
@@ -159,13 +162,13 @@ fn main() {
   let alice_input = Scalar::<Secp256k1>::random();
   let (ek_alice, dk_alice) = generate_init();
   let bob_input = Scalar::<Secp256k1>::random();
-  let (m_a, _) = MessageA::a(&alice_input, &ek_alice);
+  let m_a = MessageA::a(&alice_input, &ek_alice);
   let (m_b, beta, _) = MessageB::b(&bob_input, &ek_alice, m_a).unwrap();
   let alpha = m_b
       .get_alpha(&dk_alice, &alice_input)
       .expect("wrong dlog or m_b");
 
-  let left = alpha.0 + beta;
+  let left = alpha + beta;
   let right = alice_input * bob_input;
   assert_eq!(left, right);
 }
