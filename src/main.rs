@@ -10,38 +10,38 @@ use libpaillier::{
   *
 };
 use rand::{Rng, thread_rng};
-
+use curv::arithmetic::Converter;
 use serde::{Deserialize, Serialize};
 use sha2::Sha256;
 use generic_array::{GenericArray, typenum::U32};
 
 fn to_bytes(obj: &Scalar<Secp256k1>) -> Vec<u8> {
     match obj {
-        Scalar<Secp256k1>::SecretKey(secret) => {
+        Scalar::<Secp256k1>::SecretKey(secret) => {
             let mut bytes = secret.as_bytes().to_vec();
             bytes.resize(32, 0); // Pad with zeros to fixed size
-            Ok(bytes)
+            bytes
         }
-        Scalar<Secp256k1>::PublicKey(Public(point)) => {
+        Scalar::<Secp256k1>::PublicKey(point) => {
             let mut encoded = [0u8; 65]; // Uncompressed format
             point.encode(&mut encoded, false)?;
-            Ok(encoded.to_vec())
+            encoded.to_vec()
         }
         _ => Err("Unsupported Secp256k1 variant"),
     }
 }
 
-fn sample_below(modulus: &BigNumber) -> BigNumber {
-  let mut rng = thread_rng();
-  let mut random_num = BigNumber::from(0);
+// fn sample_below(modulus: &BigNumber) -> BigNumber {
+//   let mut rng = thread_rng();
+//   let mut random_num = BigNumber::from(0);
 
-  // Loop until a number less than the modulus is generated
-  while random_num >= *modulus {
-      random_num = BigNumber::from(rng.gen_range(0, modulus.to_u64().unwrap_or(0)));
-  }
+//   // Loop until a number less than the modulus is generated
+//   while random_num >= *modulus {
+//       random_num = BigNumber::from(rng.gen_range(0, modulus.to_u64().unwrap_or(0)));
+//   }
 
-  random_num
-}
+//   random_num
+// }
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct MessageA {
@@ -68,7 +68,7 @@ impl MessageA {
         alice_ek: &EncryptionKey,
     ) -> Self {
       
-        let res = alice_ek.encrypt(to_bytes(a).as_ref(), None);
+        let res = alice_ek.encrypt(to_bytes(a), None);
         let (c_a, _)=res.unwrap();
         // let c_a = EncryptionKey::encrypt(
         //     alice_ek,
@@ -109,10 +109,13 @@ impl MessageB {
         m_a: MessageA,
         // randomness: &BigNumber,
     ) -> Result<(Self, Scalar<Secp256k1>)> {
-        let beta_tag = sample_below(&alice_ek.n());
-        let res = alice_ek.encrypt(beta_tag.to_bytes(), None);
+        // let res = alice_ek.n().to_string();
+        let beta_tag = alice_ek.n();
+        let res = alice_ek.encrypt(&beta_tag.to_bytes(), None);
         let (c_beta_tag,_) = res.unwrap();
-        let beta_tag_fe = Scalar::<Secp256k1>::from(beta_tag.to_bigint());
+
+
+        let beta_tag_fe = Scalar::<Secp256k1>::from(&beta_tag);//Bigint
         let b_byte = to_bytes(b);
 
         let b_bn = BigNumber::from_slice(b_byte.as_ref()); // need to be a bignumber
@@ -135,12 +138,12 @@ impl MessageB {
         &self,
         dk: &DecryptionKey,
         a: &Scalar<Secp256k1>,
-    ) -> Result<(Scalar<Secp256k1>)> {
-        let alice_share = dk.decrypt(&self.c.clone());
+    ) -> Scalar<Secp256k1>{
+        let alice_share = dk.decrypt(&self.c.clone()).unwrap();
         // let alice_share = Paillier::decrypt(dk, &RawCiphertext::from(self.c.clone()));
         // let g = Point::generator();
-        
-        let alpha = Scalar::<Secp256k1>::from(alice_share.to_bigint());
+        let a_s = BigInt::from_bytes(&alice_share);
+        let alpha = Scalar::<Secp256k1>::from(a_s);
         // let g_alpha = g * &alpha;
         
         alpha
