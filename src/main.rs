@@ -13,6 +13,23 @@ use rand::{Rng, thread_rng};
 
 use serde::{Deserialize, Serialize};
 use sha2::Sha256;
+use generic_array::{GenericArray, typenum::U32};
+
+fn to_bytes(obj: &Secp256k1) -> Result<Vec<u8>, &'static str> {
+    match obj {
+        Secp256k1::SecretKey(secret) => {
+            let mut bytes = secret.as_bytes().to_vec();
+            bytes.resize(32, 0); // Pad with zeros to fixed size
+            Ok(bytes)
+        }
+        Secp256k1::PublicKey(Public(point)) => {
+            let mut encoded = [0u8; 65]; // Uncompressed format
+            point.encode(&mut encoded, false)?;
+            Ok(encoded.to_vec())
+        }
+        _ => Err("Unsupported Secp256k1 variant"),
+    }
+}
 
 fn sample_below(modulus: &BigNumber) -> BigNumber {
   let mut rng = thread_rng();
@@ -51,7 +68,7 @@ impl MessageA {
         alice_ek: &EncryptionKey,
     ) -> Self {
       
-        let c_a = alice_ek.encrypt(a, None);
+        let c_a = alice_ek.encrypt(to_bytes(a), None);
         // let c_a = EncryptionKey::encrypt(
         //     alice_ek,
         //     RawPlaintext::from(a.to_bigint()),
@@ -68,28 +85,28 @@ impl MessageA {
 }
 
 impl MessageB {
+    // pub fn b(
+    //     b: &Scalar<Secp256k1>,
+    //     alice_ek: &EncryptionKey,
+    //     m_a: MessageA,
+    // ) -> Result<(Self, Scalar<Secp256k1>, BigInt, BigInt)> {
+    //     // let beta_tag = BigInt::sample_below(&alice_ek.n);
+    //     let randomness = BigInt::sample_below(&alice_ek.n);
+    //     let (m_b, beta) = MessageB::b_with_predefined_randomness(
+    //         b,
+    //         alice_ek,
+    //         m_a,
+    //         &randomness,
+    //     )?;
+
+    //     Ok((m_b, beta, randomness))
+    // }
+
     pub fn b(
         b: &Scalar<Secp256k1>,
         alice_ek: &EncryptionKey,
         m_a: MessageA,
-    ) -> Result<(Self, Scalar<Secp256k1>, BigInt, BigInt)> {
-        // let beta_tag = BigInt::sample_below(&alice_ek.n);
-        let randomness = BigInt::sample_below(&alice_ek.n);
-        let (m_b, beta) = MessageB::b_with_predefined_randomness(
-            b,
-            alice_ek,
-            m_a,
-            &randomness,
-        )?;
-
-        Ok((m_b, beta, randomness))
-    }
-
-    pub fn b_with_predefined_randomness(
-        b: &Scalar<Secp256k1>,
-        alice_ek: &EncryptionKey,
-        m_a: MessageA,
-        randomness: &BigInt,
+        // randomness: &BigNumber,
     ) -> Result<(Self, Scalar<Secp256k1>)> {
        
         let b_bn = b.to_bigint();
@@ -127,7 +144,8 @@ impl MessageB {
     }
 
 }
-pub(crate) fn generate_init() -> (EncryptionKey, DecryptionKey) {
+
+pub fn generate_init() -> (EncryptionKey, DecryptionKey) {
   
   let dk = DecryptionKey::random();
   let sk = res.unwrap();
@@ -135,6 +153,7 @@ pub(crate) fn generate_init() -> (EncryptionKey, DecryptionKey) {
 
   (ek, dk)
 }
+
 fn main() {
   let alice_input = Scalar::<Secp256k1>::random();
   let (ek_alice, dk_alice) = generate_init();
