@@ -142,9 +142,12 @@ impl MessageB {
         let alice_share = dk.decrypt(&self.c.clone()).unwrap();
         // let alice_share = Paillier::decrypt(dk, &RawCiphertext::from(self.c.clone()));
         // let g = Point::generator();
-        let a_s = BigInt::from_bytes(&alice_share);
+        let alice_bytes:&[u8] = &alice_share;
+        let a_s = BigInt::from_bytes(alice_bytes);
         let alpha = Scalar::<Secp256k1>::from(a_s);
-        // let g_alpha = g * &alpha;
+        // let a_s = BigInt::from_bytes(&alice_share);
+        // let alpha = Scalar::<Secp256k1>::from(a_s);
+        // // let g_alpha = g * &alpha;
         
         alpha
        
