@@ -68,7 +68,8 @@ impl MessageA {
         alice_ek: &EncryptionKey,
     ) -> Self {
       
-        let c_a = alice_ek.encrypt(to_bytes(a), None);
+        let res = alice_ek.encrypt(to_bytes(a), None);
+        let (c_a, _)=res.unwrap();
         // let c_a = EncryptionKey::encrypt(
         //     alice_ek,
         //     RawPlaintext::from(a.to_bigint()),
@@ -108,20 +109,19 @@ impl MessageB {
         m_a: MessageA,
         // randomness: &BigNumber,
     ) -> Result<(Self, Scalar<Secp256k1>)> {
+        let beta_tag = sample_below(&alice_ek.n());
+        let c_beta_tag = alice_ek.encrypt(beta_tag, None);
+        let beta_tag_fe = Scalar::<Secp256k1>::from(beta_tag);
        
         let b_bn = b.to_bigint(); // need to be a bignumber
-        let b_c_a = Paillier::mul(
-            alice_ek,
-            RawCiphertext::from(m_a.c),
-            RawPlaintext::from(b_bn),
-        );
-        let c_b = Paillier::add(alice_ek, b_c_a);
-        let beta = Scalar::<Secp256k1>::zero() ;
+        let b_c_a = alice_ek.mul(m_a.c, b_bn);
+        let c_b = alice_ek.add(b_c_a, c_beta_tag);
+        let beta = Scalar::<Secp256k1>::zero() - &beta_tag_fe;
 
 
         Ok((
             Self {
-                c: c_b.0.clone().into_owned(),
+                c: c_b.unwrap(),
                 
             },
             beta,
@@ -137,10 +137,10 @@ impl MessageB {
         // let alice_share = Paillier::decrypt(dk, &RawCiphertext::from(self.c.clone()));
         // let g = Point::generator();
         
-        let alpha = Scalar::<Secp256k1>::from(alice_share.0.as_ref());
+        let alpha = Scalar::<Secp256k1>::from(alice_share.as_ref());
         // let g_alpha = g * &alpha;
         
-            Ok((alpha, alice_share.0.into_owned()))
+            Ok((alpha, alice_share))
        
     }
 
