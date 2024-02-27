@@ -109,7 +109,7 @@ impl MessageB {
         // randomness: &BigNumber,
     ) -> Result<(Self, Scalar<Secp256k1>)> {
        
-        let b_bn = b.to_bigint();
+        let b_bn = b.to_bigint(); // need to be a bignumber
         let b_c_a = Paillier::mul(
             alice_ek,
             RawCiphertext::from(m_a.c),
@@ -133,7 +133,8 @@ impl MessageB {
         dk: &DecryptionKey,
         a: &Scalar<Secp256k1>,
     ) -> Result<(Scalar<Secp256k1>, BigNumber)> {
-        let alice_share = Paillier::decrypt(dk, &RawCiphertext::from(self.c.clone()));
+        let alice_share = dk.decrypt(self.c.clone());
+        // let alice_share = Paillier::decrypt(dk, &RawCiphertext::from(self.c.clone()));
         // let g = Point::generator();
         
         let alpha = Scalar::<Secp256k1>::from(alice_share.0.as_ref());
