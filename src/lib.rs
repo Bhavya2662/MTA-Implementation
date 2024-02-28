@@ -86,7 +86,7 @@ impl PubKey {
     /// encrypt message to ciphertext
     pub fn encrypt_message(&self, msg: &str) -> Option<BigInt> {
         let msg_int = BigUint::from_bytes_be(msg.as_bytes()).to_bigint().unwrap();
-        dbg!(&msg_int);
+        //dbg!(&msg_int);
         self.encrypt(&msg_int)
     }
 
