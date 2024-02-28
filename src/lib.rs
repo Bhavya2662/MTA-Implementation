@@ -16,7 +16,8 @@ use num_primes::Generator;
 use num_traits::identities::{One, Zero};
 use std::clone::Clone;
 use std::ops::{Mul, Sub};
-use num_primes::RandBigInt;
+// use num_primes::RandBigInt;
+use num_bigint::RandBigInt;
 
 /// PubKey -- Publick Key
 #[derive(Debug, Clone, Default)]

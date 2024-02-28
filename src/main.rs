@@ -10,7 +10,7 @@ use curv::elliptic::curves::{secp256_k1::Secp256k1, Point, Scalar};
 //   *
 // };
 use num_bigint::{BigInt, BigUint, RandBigInt, ToBigInt};
-
+use crate::lib::make_key_pair;
 use rand::{Rng, thread_rng};
 use curv::arithmetic::Converter;
 use serde::{Deserialize, Serialize};
@@ -49,12 +49,12 @@ fn scalar_to_string(scalar: &Scalar<Secp256k1>) -> String {
     let base_repr = scalar.to_bigint();
     base_repr.to_string()
   }
-#[derive(Clone, Debug, Serialize, Deserialize)]
+// #[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct MessageA {
     pub c: BigInt,                     // paillier encryption
   }
 
-#[derive(Clone, Debug, Serialize, Deserialize)]
+// #[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct MessageB {
     pub c: BigInt, // paillier encryption
 }
@@ -74,7 +74,11 @@ impl MessageA {
         alice_ek: &PubKey,
     ) -> Self {
         
-        let res = alice_ek.encrypt_message(scalar_to_string(a));
+        let res = alice_ek.encrypt(&a.to_bigint());
+        let res = match res {
+            Some(value) => value,
+            None => panic!("Unexpected None value"), // Replace with appropriate handling for `None`
+          }
         
         // let c_a = EncryptionKey::encrypt(
         //     alice_ek,
@@ -114,11 +118,14 @@ impl MessageB {
         alice_ek: &PubKey,
         m_a: MessageA,
         // randomness: &BigNumber,
-    ) -> Result<(Self, Scalar<Secp256k1>)> {
+    ) -> (Self, Scalar<Secp256k1>) {
         // let res = alice_ek.n().to_string();
         let beta_tag = alice_ek.n;
-        let c_beta_tag = alice_ek.encrypt(&beta_tag.to_string());
-        
+        let c_beta_tag = alice_ek.encrypt(&beta_tag);
+        let c_beta_tag = match c_beta_tag {
+            Some(value) => value,
+            None => panic!("Unexpected None value"), // Replace with appropriate handling for `None`
+          }
         // let big_integer_beta_tag: BigInt = BigInt::from(&beta_tag);
         // let beta_tag_fe = Scalar::<Secp256k1>::from(&big_integer_beta_tag);//Bigint
         // let big_vec: Vec<u8> = beta_tag.to_bytes() // Convert this big number to a big-endian byte sequence vec<u8>, the sign is not included
@@ -132,6 +139,10 @@ impl MessageB {
 
         let b_bn = b.to_bigint(); // need to be a bignumber
         let b_c_a = alice_ek.mult_two_plain_text(&m_a.c, &b_bn);
+        let b_c_a = match b_c_a {
+            Some(value) => value,
+            None => panic!("Unexpected None value"), // Replace with appropriate handling for `None`
+          }
         // let  = res1.unwrap();
         let c_b = alice_ek.add_two_plain_text(&b_c_a, &c_beta_tag);
         let beta = Scalar::<Secp256k1>::zero() - &beta_tag_fe;
@@ -148,7 +159,7 @@ impl MessageB {
 
     pub fn get_alpha(
         &self,
-        dk: &DecryptionKey,
+        dk: &PrivKey,
         a: &Scalar<Secp256k1>,
     ) -> Scalar<Secp256k1>{
         let alice_share = dk.decrypt(&self.c.to_string());
@@ -167,7 +178,7 @@ impl MessageB {
 
 }
 
-pub fn generate_init() -> (EncryptionKey, DecryptionKey) {
+pub fn generate_init() -> (PubKey, PrivKey) {
   
   // Generate a key pair with a desired bit length for the keys (e.g., 2048)
   let key_pair = make_key_pair(2048).expect("Failed to generate key pair");
