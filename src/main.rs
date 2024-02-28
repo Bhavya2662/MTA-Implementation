@@ -45,7 +45,10 @@ use lib::{PubKey, PrivKey };
 
 //   random_num
 // }
-
+fn scalar_to_string(scalar: &Scalar<Secp256k1>) -> String {
+    let base_repr = scalar.to_bigint();
+    base_repr.to_string()
+  }
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct MessageA {
     pub c: BigInt,                     // paillier encryption
@@ -70,9 +73,9 @@ impl MessageA {
         a: &Scalar<Secp256k1>,
         alice_ek: &PubKey,
     ) -> Self {
-      
-        let res = alice_ek.encrypt_message(a);
-        let (c_a, _)=res.unwrap();
+        
+        let res = alice_ek.encrypt_message(scalar_to_string(a));
+        
         // let c_a = EncryptionKey::encrypt(
         //     alice_ek,
         //     RawPlaintext::from(a.to_bigint()),
@@ -83,7 +86,7 @@ impl MessageA {
         // .into_owned();
 
         Self {
-            c: c_a,
+            c: res,// Option<BigInt>
         }
     }
 }
@@ -113,30 +116,30 @@ impl MessageB {
         // randomness: &BigNumber,
     ) -> Result<(Self, Scalar<Secp256k1>)> {
         // let res = alice_ek.n().to_string();
-        let beta_tag = alice_ek.n();
-        let res = alice_ek.encrypt(&beta_tag.to_bytes(), None);
-        let (c_beta_tag,_) = res.unwrap();
+        let beta_tag = alice_ek.n;
+        let c_beta_tag = alice_ek.encrypt(&beta_tag.to_string());
+        
         // let big_integer_beta_tag: BigInt = BigInt::from(&beta_tag);
         // let beta_tag_fe = Scalar::<Secp256k1>::from(&big_integer_beta_tag);//Bigint
-        let big_vec: Vec<u8> = beta_tag.to_bytes() // Convert this big number to a big-endian byte sequence vec<u8>, the sign is not included
-        let big_integer =  BigInt::from_bytes_be(Sign::Plus, &big_vec);  // convert vev<u8> to &[u8] 
-        let beta_tag_fe = Scalar::<Secp256k1>::from(&big_integer); // Bigint
+        // let big_vec: Vec<u8> = beta_tag.to_bytes() // Convert this big number to a big-endian byte sequence vec<u8>, the sign is not included
+        // let big_integer =  BigInt::from_bytes_be(Sign::Plus, &big_vec);  // convert vev<u8> to &[u8] 
+        let beta_tag_fe = Scalar::<Secp256k1>::from(&beta_tag); // Bigint
 
 
 
         // let beta_tag_fe = Scalar::<Secp256k1>::from(&beta_tag);// Bigint
-        let b_byte = to_bytes(b);
+        
 
-        let b_bn = BigNumber::from_slice(b_byte.as_ref()); // need to be a bignumber
-        let res1 = alice_ek.mul(&m_a.c, &b_bn);
-        let b_c_a = res1.unwrap();
-        let c_b = alice_ek.add(&b_c_a, &c_beta_tag);
+        let b_bn = b.to_bigint(); // need to be a bignumber
+        let b_c_a = alice_ek.mult_two_plain_text(&m_a.c, &b_bn);
+        // let  = res1.unwrap();
+        let c_b = alice_ek.add_two_plain_text(&b_c_a, &c_beta_tag);
         let beta = Scalar::<Secp256k1>::zero() - &beta_tag_fe;
 
 
         Ok((
             Self {
-                c: c_b.unwrap(),
+                c: c_b,
                 
             },
             beta,
@@ -148,12 +151,12 @@ impl MessageB {
         dk: &DecryptionKey,
         a: &Scalar<Secp256k1>,
     ) -> Scalar<Secp256k1>{
-        let alice_share = dk.decrypt(&self.c.clone()).unwrap();
+        let alice_share = dk.decrypt(&self.c.to_string());
         // let alice_share = Paillier::decrypt(dk, &RawCiphertext::from(self.c.clone()));
         // let g = Point::generator();
-        let alice_bytes:&[u8] = &alice_share;
-        let a_s = BigInt::from_bytes_be(Sign::Plus, &alice_bytes);
-        let alpha = Scalar::<Secp256k1>::from(a_s);
+        // let alice_bytes:&[u8] = &alice_share;
+        // let a_s = BigInt::from_bytes_be(Sign::Plus, &alice_bytes);
+        let alpha = Scalar::<Secp256k1>::from(alice_share);
         // let a_s = BigInt::from_bytes(&alice_share);
         // let alpha = Scalar::<Secp256k1>::from(a_s);
         // // let g_alpha = g * &alpha;

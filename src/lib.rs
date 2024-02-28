@@ -10,11 +10,13 @@
 //!
 //! See [Github README](https://github.com/AlexiaChen/paillier-rs/blob/master/README.md)
 
-use num_bigint::{BigInt, BigUint, RandBigInt, ToBigInt};
+use num_bigint::{BigInt, BigUint, ToBigInt};
+// use num_bigint::bigint::ToBigInt;
 use num_primes::Generator;
 use num_traits::identities::{One, Zero};
 use std::clone::Clone;
 use std::ops::{Mul, Sub};
+use num_primes::RandBigInt;
 
 /// PubKey -- Publick Key
 #[derive(Debug, Clone, Default)]

@@ -636,6 +636,12 @@ dependencies = [
 ]
 
 [[package]]
+name = "log"
+version = "0.4.20"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "b5e6163cb8c49088c2c36f57875e58ccd8c87c7427f7fbd50ea6710b2f3f2e8f"
+
+[[package]]
 name = "merkle-cbt"
 version = "0.3.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -654,6 +660,8 @@ dependencies = [
  "k256",
  "libpaillier",
  "num",
+ "num-bigint 0.4.4",
+ "num-primes",
  "num-traits 0.1.43",
  "paillier",
  "rand 0.5.6",
@@ -704,6 +712,7 @@ dependencies = [
  "autocfg 1.1.0",
  "num-integer",
  "num-traits 0.2.18",
+ "rand 0.5.6",
 ]
 
 [[package]]
@@ -744,6 +753,19 @@ dependencies = [
  "autocfg 1.1.0",
  "num-integer",
  "num-traits 0.2.18",
+]
+
+[[package]]
+name = "num-primes"
+version = "0.3.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "38f25459a616100b36b5af31d8b05abbee29a5f29f83ddf95e78cb2268ab300a"
+dependencies = [
+ "log",
+ "num",
+ "num-bigint 0.2.6",
+ "num-traits 0.2.18",
+ "rand 0.5.6",
 ]
 
 [[package]]
