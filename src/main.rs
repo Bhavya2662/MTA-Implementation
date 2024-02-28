@@ -1,35 +1,38 @@
 use curv::arithmetic::traits::Samplable;
 use curv::elliptic::curves::{secp256_k1::Secp256k1, Point, Scalar};
-use curv::BigInt;
+// use curv::BigInt;
 // use paillier::traits::EncryptWithChosenRandomness;
 // use paillier::{Add, Decrypt, Mul};
 // use paillier::{DecryptionKey, EncryptionKey, Paillier, Randomness, RawCiphertext, RawPlaintext};
 // use paillier::KeyGeneration;
-use libpaillier::{
-  unknown_order::BigNumber,
-  *
-};
+// use libpaillier::{
+//   unknown_order::BigNumber,
+//   *
+// };
+use num_bigint::{BigInt, BigUint, RandBigInt, ToBigInt};
+
 use rand::{Rng, thread_rng};
 use curv::arithmetic::Converter;
 use serde::{Deserialize, Serialize};
 use sha2::Sha256;
 use generic_array::{GenericArray, typenum::U32};
-
-fn to_bytes(obj: &Scalar<Secp256k1>) -> Vec<u8> {
-    match obj {
-        Scalar::<Secp256k1>::SecretKey(secret) => {
-            let mut bytes = secret.as_bytes().to_vec();
-            bytes.resize(32, 0); // Pad with zeros to fixed size
-            bytes
-        }
-        Scalar::<Secp256k1>::PublicKey(point) => {
-            let mut encoded = [0u8; 65]; // Uncompressed format
-            point.encode(&mut encoded, false)?;
-            encoded.to_vec()
-        }
-        _ => Err("Unsupported Secp256k1 variant"),
-    }
-}
+mod lib;
+use lib::{PubKey, PrivKey };
+// fn to_bytes(obj: &Scalar<Secp256k1>) -> Vec<u8> {
+//     match obj {
+//         Scalar::<Secp256k1>::SecretKey(secret) => {
+//             let mut bytes = secret.as_bytes().to_vec();
+//             bytes.resize(32, 0); // Pad with zeros to fixed size
+//             bytes
+//         }
+//         Scalar::<Secp256k1>::PublicKey(point) => {
+//             let mut encoded = [0u8; 65]; // Uncompressed format
+//             point.encode(&mut encoded, false)?;
+//             encoded.to_vec()
+//         }
+//         _ => Err("Unsupported Secp256k1 variant"),
+//     }
+// }
 
 // fn sample_below(modulus: &BigNumber) -> BigNumber {
 //   let mut rng = thread_rng();
@@ -45,12 +48,12 @@ fn to_bytes(obj: &Scalar<Secp256k1>) -> Vec<u8> {
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct MessageA {
-    pub c: BigNumber,                     // paillier encryption
+    pub c: BigInt,                     // paillier encryption
   }
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct MessageB {
-    pub c: BigNumber, // paillier encryption
+    pub c: BigInt, // paillier encryption
 }
 
 impl MessageA {
@@ -65,10 +68,10 @@ impl MessageA {
 
     pub fn a(
         a: &Scalar<Secp256k1>,
-        alice_ek: &EncryptionKey,
+        alice_ek: &PubKey,
     ) -> Self {
       
-        let res = alice_ek.encrypt(to_bytes(a), None);
+        let res = alice_ek.encrypt_message(a);
         let (c_a, _)=res.unwrap();
         // let c_a = EncryptionKey::encrypt(
         //     alice_ek,
@@ -105,7 +108,7 @@ impl MessageB {
 
     pub fn b(
         b: &Scalar<Secp256k1>,
-        alice_ek: &EncryptionKey,
+        alice_ek: &PubKey,
         m_a: MessageA,
         // randomness: &BigNumber,
     ) -> Result<(Self, Scalar<Secp256k1>)> {
@@ -113,9 +116,15 @@ impl MessageB {
         let beta_tag = alice_ek.n();
         let res = alice_ek.encrypt(&beta_tag.to_bytes(), None);
         let (c_beta_tag,_) = res.unwrap();
+        // let big_integer_beta_tag: BigInt = BigInt::from(&beta_tag);
+        // let beta_tag_fe = Scalar::<Secp256k1>::from(&big_integer_beta_tag);//Bigint
+        let big_vec: Vec<u8> = beta_tag.to_bytes() // Convert this big number to a big-endian byte sequence vec<u8>, the sign is not included
+        let big_integer =  BigInt::from_bytes_be(Sign::Plus, &big_vec);  // convert vev<u8> to &[u8] 
+        let beta_tag_fe = Scalar::<Secp256k1>::from(&big_integer); // Bigint
 
 
-        let beta_tag_fe = Scalar::<Secp256k1>::from(&beta_tag);//Bigint
+
+        // let beta_tag_fe = Scalar::<Secp256k1>::from(&beta_tag);// Bigint
         let b_byte = to_bytes(b);
 
         let b_bn = BigNumber::from_slice(b_byte.as_ref()); // need to be a bignumber
@@ -143,7 +152,7 @@ impl MessageB {
         // let alice_share = Paillier::decrypt(dk, &RawCiphertext::from(self.c.clone()));
         // let g = Point::generator();
         let alice_bytes:&[u8] = &alice_share;
-        let a_s = BigInt::from_bytes(alice_bytes);
+        let a_s = BigInt::from_bytes_be(Sign::Plus, &alice_bytes);
         let alpha = Scalar::<Secp256k1>::from(a_s);
         // let a_s = BigInt::from_bytes(&alice_share);
         // let alpha = Scalar::<Secp256k1>::from(a_s);
@@ -157,11 +166,15 @@ impl MessageB {
 
 pub fn generate_init() -> (EncryptionKey, DecryptionKey) {
   
-  let sk = DecryptionKey::random();
-  let dk = sk.unwrap();
-  let ek = EncryptionKey::from(&dk);
+  // Generate a key pair with a desired bit length for the keys (e.g., 2048)
+  let key_pair = make_key_pair(2048).expect("Failed to generate key pair");
 
-  (ek, dk)
+  // Extract the public and private keys from the key pair
+  let public_key = key_pair.public_key;
+  let private_key = key_pair.private_key;
+
+  // Return the public and private keys as separate types
+  (public_key, private_key)
 }
 
 fn main() {
