@@ -1,3 +1,7 @@
+#![allow(unused_imports)]
+#![allow(non_snake_case)]
+#![allow(unused_variables)]
+#![allow(unused_parens)]
 use curv::arithmetic::traits::Samplable;
 use curv::elliptic::curves::{secp256_k1::Secp256k1, Point, Scalar};
 // use curv::BigInt;
@@ -9,7 +13,9 @@ use curv::elliptic::curves::{secp256_k1::Secp256k1, Point, Scalar};
 //   unknown_order::BigNumber,
 //   *
 // };
-use num_bigint::{BigInt, BigUint, RandBigInt, ToBigInt};
+
+use std::str::FromStr;
+use num_bigint::{BigInt, BigUint, RandBigInt, ToBigInt, Sign};
 use crate::lib::make_key_pair;
 use rand::{Rng, thread_rng};
 use curv::arithmetic::Converter;
@@ -18,6 +24,8 @@ use sha2::Sha256;
 use generic_array::{GenericArray, typenum::U32};
 mod lib;
 use lib::{PubKey, PrivKey };
+
+
 // fn to_bytes(obj: &Scalar<Secp256k1>) -> Vec<u8> {
 //     match obj {
 //         Scalar::<Secp256k1>::SecretKey(secret) => {
@@ -73,12 +81,21 @@ impl MessageA {
         a: &Scalar<Secp256k1>,
         alice_ek: &PubKey,
     ) -> Self {
-        
-        let res = alice_ek.encrypt(&a.to_bigint());
-        let res = match res {
-            Some(value) => value,
-            None => panic!("Unexpected None value"), // Replace with appropriate handling for `None`
-          }
+        dbg!(&a.to_bigint());
+        let str_alice_bigint = a.to_bigint().to_string(); //fixed
+        let biggg = BigInt::from_str(&str_alice_bigint).unwrap();
+        dbg!(&biggg);
+        dbg!(&str_alice_bigint);
+        //let res = alice_ek.encrypt(&a.to_bigint());
+
+        // have to convert curv::BigInt to num_bigint without str use. 
+        //let res = alice_ek.encrypt_message(&str_alice_bigint); //error here
+        let res = alice_ek.encrypt(&biggg);
+        dbg!(&res);
+        // let res = match res {
+        //     Some(value) => value,
+        //     None => panic!("Unexpected None value"), // Replace with appropriate handling for `None`
+        //   };
         
         // let c_a = EncryptionKey::encrypt(
         //     alice_ek,
@@ -90,7 +107,7 @@ impl MessageA {
         // .into_owned();
 
         Self {
-            c: res,// Option<BigInt>
+            c: res.unwrap(),// Option<BigInt>
         }
     }
 }
@@ -120,39 +137,41 @@ impl MessageB {
         // randomness: &BigNumber,
     ) -> (Self, Scalar<Secp256k1>) {
         // let res = alice_ek.n().to_string();
-        let beta_tag = alice_ek.n;
+        let beta_tag = &alice_ek.n;
         let c_beta_tag = alice_ek.encrypt(&beta_tag);
-        let c_beta_tag = match c_beta_tag {
-            Some(value) => value,
-            None => panic!("Unexpected None value"), // Replace with appropriate handling for `None`
-          }
+        // let c_beta_tag = match c_beta_tag {
+        //     Some(value) => value,
+        //     None => panic!("Unexpected None value"), // Replace with appropriate handling for `None`
+        //   };
         // let big_integer_beta_tag: BigInt = BigInt::from(&beta_tag);
         // let beta_tag_fe = Scalar::<Secp256k1>::from(&big_integer_beta_tag);//Bigint
         // let big_vec: Vec<u8> = beta_tag.to_bytes() // Convert this big number to a big-endian byte sequence vec<u8>, the sign is not included
         // let big_integer =  BigInt::from_bytes_be(Sign::Plus, &big_vec);  // convert vev<u8> to &[u8] 
-        let beta_tag_fe = Scalar::<Secp256k1>::from(&beta_tag); // Bigint
-
-
-
-        // let beta_tag_fe = Scalar::<Secp256k1>::from(&beta_tag);// Bigint
         
+        
+        let str_bigint = String::from(&beta_tag.to_string());
+        let scalar_bitint_beta_tag: &[u8] = str_bigint.as_bytes(); //fixed
+        
+        let beta_tag_fe = Scalar::<Secp256k1>::from_bytes(&scalar_bitint_beta_tag); // Bigint
+
+        //let beta_tag_fe = Scalar::<Secp256k1>::from(&beta_tag);// Bigint
 
         let b_bn = b.to_bigint(); // need to be a bignumber
-        let b_c_a = alice_ek.mult_two_plain_text(&m_a.c, &b_bn);
-        let b_c_a = match b_c_a {
-            Some(value) => value,
-            None => panic!("Unexpected None value"), // Replace with appropriate handling for `None`
-          }
+
+        let string_bigint_bca = String::from(b_bn.to_string());
+        let num_bigint_bca = BigInt::from_bytes_be(Sign::Plus, string_bigint_bca.as_bytes());
+
+        let b_c_a = alice_ek.mult_two_plain_text(&m_a.c, &num_bigint_bca); //fixed
+        // let b_c_a = match b_c_a {
+        //     Some(value) => value,
+        //     None => panic!("Unexpected None value"), // Replace with appropriate handling for `None`
+        //   };
         // let  = res1.unwrap();
-        let c_b = alice_ek.add_two_plain_text(&b_c_a, &c_beta_tag);
-        let beta = Scalar::<Secp256k1>::zero() - &beta_tag_fe;
+        let c_b = alice_ek.add_two_plain_text(&b_c_a.unwrap(), &c_beta_tag.unwrap());
+        let beta = Scalar::<Secp256k1>::zero() - &beta_tag_fe.unwrap();
 
-
-        Ok((
-            Self {
-                c: c_b,
-                
-            },
+        ((
+            Self {c: c_b.unwrap()},
             beta,
         ))
     }
@@ -162,17 +181,23 @@ impl MessageB {
         dk: &PrivKey,
         a: &Scalar<Secp256k1>,
     ) -> Scalar<Secp256k1>{
-        let alice_share = dk.decrypt(&self.c.to_string());
+
+
+        let alice_share = dk.decrypt(&self.c).unwrap();
         // let alice_share = Paillier::decrypt(dk, &RawCiphertext::from(self.c.clone()));
         // let g = Point::generator();
-        // let alice_bytes:&[u8] = &alice_share;
-        // let a_s = BigInt::from_bytes_be(Sign::Plus, &alice_bytes);
-        let alpha = Scalar::<Secp256k1>::from(alice_share);
+
+        let str_bigint_alice_sh = String::from(&alice_share.to_string());
+        let scalar_bitint_alice_sh: &[u8] = str_bigint_alice_sh.as_bytes();
+
+        //let alice_bytes:&[u8] = &alice_share.unwrap();
+        //let a_s = BigInt::from_bytes_be(Sign::Plus, &alice_bytes);
+        let alpha = Scalar::<Secp256k1>::from_bytes(scalar_bitint_alice_sh);
         // let a_s = BigInt::from_bytes(&alice_share);
         // let alpha = Scalar::<Secp256k1>::from(a_s);
         // // let g_alpha = g * &alpha;
         
-        alpha
+        alpha.unwrap()
        
     }
 
@@ -181,27 +206,36 @@ impl MessageB {
 pub fn generate_init() -> (PubKey, PrivKey) {
   
   // Generate a key pair with a desired bit length for the keys (e.g., 2048)
-  let key_pair = make_key_pair(2048).expect("Failed to generate key pair");
+  let key_pair = make_key_pair(100).expect("Failed to generate key pair");
 
   // Extract the public and private keys from the key pair
-  let public_key = key_pair.public_key;
-  let private_key = key_pair.private_key;
+//   let public_key = key_pair.pk; 
+//   let private_key = key_pair;
 
-  // Return the public and private keys as separate types
-  (public_key, private_key)
+//   // Return the public and private keys as separate types
+
+   let (private_key, public_key)= key_pair.get_keys();
+   (public_key.clone(), private_key.clone())
+
 }
 
 fn main() {
   let alice_input = Scalar::<Secp256k1>::random();
   let (ek_alice, dk_alice) = generate_init();
+    //dbg!(&ek_alice);
+    //dbg!(&dk_alice);
+
   let bob_input = Scalar::<Secp256k1>::random();
   let m_a = MessageA::a(&alice_input, &ek_alice);
-  let (m_b, beta, _) = MessageB::b(&bob_input, &ek_alice, m_a).unwrap();
+
+  let (m_b, beta) = MessageB::b(&bob_input, &ek_alice, m_a);
+
   let alpha = m_b
-      .get_alpha(&dk_alice, &alice_input)
-      .expect("wrong dlog or m_b");
+      .get_alpha(&dk_alice, &alice_input);
 
   let left = alpha + beta;
+
   let right = alice_input * bob_input;
+
   assert_eq!(left, right);
 }

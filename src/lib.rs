@@ -10,6 +10,10 @@
 //!
 //! See [Github README](https://github.com/AlexiaChen/paillier-rs/blob/master/README.md)
 
+#![allow(unused_imports)]
+#![allow(non_snake_case)]
+#![allow(unused_variables)]
+
 use num_bigint::{BigInt, BigUint, ToBigInt};
 // use num_bigint::bigint::ToBigInt;
 use num_primes::Generator;
@@ -28,6 +32,7 @@ pub struct PubKey {
 }
 
 /// PrivKey -- Private Key
+#[derive(Debug, Clone)]
 pub struct PrivKey {
     pub lambda: BigInt, // lambda = lcm(p - 1, q - 1)
     pub mu: BigInt, // https://en.wikipedia.org/wiki/Mu_(letter)  mu = （L(g^lambda mod n^2)）^-1 mod n
@@ -35,7 +40,17 @@ pub struct PrivKey {
 }
 
 /// KeyPair -- includes public key and privatekey
+#[derive(Debug, Clone)]
 pub struct KeyPair(PrivKey);
+
+impl KeyPair {
+    // Function to access PrivKey and PubKey from KeyPair
+    pub fn get_keys(&self) -> (&PrivKey, &PubKey) {
+        let KeyPair(priv_key) = self;
+        let PrivKey { pk, lambda, mu } = priv_key;
+        (&priv_key, &pk)
+    }
+}
 
 /// make_key_pair -- Generate pk and sk
 pub fn make_key_pair(bitlen: usize) -> Option<KeyPair> {
@@ -71,6 +86,7 @@ impl PubKey {
     /// encrypt message to ciphertext
     pub fn encrypt_message(&self, msg: &str) -> Option<BigInt> {
         let msg_int = BigUint::from_bytes_be(msg.as_bytes()).to_bigint().unwrap();
+        dbg!(&msg_int);
         self.encrypt(&msg_int)
     }
 
@@ -78,6 +94,8 @@ impl PubKey {
     /// Encrypt: additive group A -> additive group B
     pub fn encrypt(&self, m: &BigInt) -> Option<BigInt> {
         // Let m be a message to be encrypted where 0 <= m < n
+        dbg!(&m);
+        dbg!(&self.n);
         if m >= &BigInt::zero() && m < &self.n {
             // select random r where 0 < r < n
             let mut rng = rand::thread_rng();
@@ -87,6 +105,7 @@ impl PubKey {
             let g_m = self.g.modpow(m, &self.nn);
             let r_n = r.modpow(&self.n, &self.nn);
             let c = (g_m * r_n) % &self.nn;
+            dbg!(&c);
             Some(c)
         } else {
             None
