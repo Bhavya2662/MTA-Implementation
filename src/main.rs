@@ -4,6 +4,7 @@
 #![allow(unused_parens)]
 use curv::arithmetic::traits::Samplable;
 use curv::elliptic::curves::{secp256_k1::Secp256k1, Point, Scalar};
+
 // use curv::BigInt;
 // use paillier::traits::EncryptWithChosenRandomness;
 // use paillier::{Add, Decrypt, Mul};
@@ -16,6 +17,8 @@ use curv::elliptic::curves::{secp256_k1::Secp256k1, Point, Scalar};
 
 use std::str::FromStr;
 use num_bigint::{BigInt, BigUint, RandBigInt, ToBigInt, Sign};
+use curv::BigInt as NumBigInt;
+
 use crate::lib::make_key_pair;
 use rand::{Rng, thread_rng};
 use curv::arithmetic::Converter;
@@ -67,6 +70,17 @@ pub struct MessageB {
     pub c: BigInt, // paillier encryption
 }
 
+fn convert_curv_to_num_bigint(curv_bigint: &NumBigInt) -> BigInt {
+    let mut num_bigint = BigInt::from(0);
+    let curv_bigint_bytes = curv_bigint.to_bytes();
+    for byte in curv_bigint_bytes.iter().rev() {
+        num_bigint = num_bigint << 8;
+        num_bigint += BigInt::from(*byte);
+    }
+    num_bigint
+}
+
+
 impl MessageA {
     // pub fn a(
     //     a: &Scalar<Secp256k1>,
@@ -82,16 +96,20 @@ impl MessageA {
         alice_ek: &PubKey,
     ) -> Self {
         dbg!(&a.to_bigint());
-        let str_alice_bigint = a.to_bigint().to_string(); //fixed
-        let biggg = BigInt::from_str(&str_alice_bigint).unwrap();
-        dbg!(&biggg);
-        dbg!(&str_alice_bigint);
+        let hex_alice_bigint = a.to_bigint().to_hex(); //fixed
+
+        //let biggg = BigInt::from_str(&str_alice_bigint).unwrap();
+        //dbg!(&biggg);
+        dbg!(&hex_alice_bigint);
+        let bigint_from_hex = BigInt::parse_bytes(hex_alice_bigint.as_bytes(), 16).unwrap();
+        println!("BigInt from hex: {}", bigint_from_hex); //correct value of bigint
+        dbg!(&bigint_from_hex);
+        //dbg!(&convert_curv_to_num_bigint(&a.to_bigint()));
         //let res = alice_ek.encrypt(&a.to_bigint());
+        //let res = alice_ek.encrypt(&convert_curv_to_num_bigint(&a.to_bigint()));
 
         // have to convert curv::BigInt to num_bigint without str use. 
-        //let res = alice_ek.encrypt_message(&str_alice_bigint); //error here
-        let res = alice_ek.encrypt(&biggg);
-        dbg!(&res);
+        let res = alice_ek.encrypt(&bigint_from_hex); //error here. FIXED
         // let res = match res {
         //     Some(value) => value,
         //     None => panic!("Unexpected None value"), // Replace with appropriate handling for `None`
@@ -138,11 +156,12 @@ impl MessageB {
     ) -> (Self, Scalar<Secp256k1>) {
         // let res = alice_ek.n().to_string();
         let beta_tag = &alice_ek.n;
-        let c_beta_tag = alice_ek.encrypt(&beta_tag);
-        // let c_beta_tag = match c_beta_tag {
-        //     Some(value) => value,
-        //     None => panic!("Unexpected None value"), // Replace with appropriate handling for `None`
-        //   };
+
+        let c_beta_tag = alice_ek.encrypt(&beta_tag); //error here. This will fail cause essentially, m given is same as alice_ek's n.
+        let c_beta_tag = match c_beta_tag {
+            Some(value) => value,
+            None => panic!("Unexpected None value"), // Replace with appropriate handling for `None`
+          };
         // let big_integer_beta_tag: BigInt = BigInt::from(&beta_tag);
         // let beta_tag_fe = Scalar::<Secp256k1>::from(&big_integer_beta_tag);//Bigint
         // let big_vec: Vec<u8> = beta_tag.to_bytes() // Convert this big number to a big-endian byte sequence vec<u8>, the sign is not included
@@ -167,7 +186,7 @@ impl MessageB {
         //     None => panic!("Unexpected None value"), // Replace with appropriate handling for `None`
         //   };
         // let  = res1.unwrap();
-        let c_b = alice_ek.add_two_plain_text(&b_c_a.unwrap(), &c_beta_tag.unwrap());
+        let c_b = alice_ek.add_two_plain_text(&b_c_a.unwrap(), &c_beta_tag);
         let beta = Scalar::<Secp256k1>::zero() - &beta_tag_fe.unwrap();
 
         ((
@@ -206,7 +225,7 @@ impl MessageB {
 pub fn generate_init() -> (PubKey, PrivKey) {
   
   // Generate a key pair with a desired bit length for the keys (e.g., 2048)
-  let key_pair = make_key_pair(100).expect("Failed to generate key pair");
+  let key_pair = make_key_pair(256).expect("Failed to generate key pair");
 
   // Extract the public and private keys from the key pair
 //   let public_key = key_pair.pk; 

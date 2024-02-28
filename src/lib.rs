@@ -94,8 +94,6 @@ impl PubKey {
     /// Encrypt: additive group A -> additive group B
     pub fn encrypt(&self, m: &BigInt) -> Option<BigInt> {
         // Let m be a message to be encrypted where 0 <= m < n
-        dbg!(&m);
-        dbg!(&self.n);
         if m >= &BigInt::zero() && m < &self.n {
             // select random r where 0 < r < n
             let mut rng = rand::thread_rng();
