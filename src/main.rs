@@ -107,15 +107,15 @@ impl MessageA {
         a: &Scalar<Secp256k1>,
         alice_ek: &PubKey,
     ) -> Self {
-        dbg!(&a.to_bigint());
+        // dbg!(&a.to_bigint());
         let hex_alice_bigint = a.to_bigint().to_hex(); //fixed
 
         //let biggg = BigInt::from_str(&str_alice_bigint).unwrap();
         //dbg!(&biggg);
-        dbg!(&hex_alice_bigint);
+        // dbg!(&hex_alice_bigint);
         let bigint_from_hex = BigInt::parse_bytes(hex_alice_bigint.as_bytes(), 16).unwrap();
         println!("BigInt from hex: {}", bigint_from_hex); //correct value of bigint
-        dbg!(&bigint_from_hex);
+        // dbg!(&bigint_from_hex);
         //dbg!(&convert_curv_to_num_bigint(&a.to_bigint()));
         //let res = alice_ek.encrypt(&a.to_bigint());
         //let res = alice_ek.encrypt(&convert_curv_to_num_bigint(&a.to_bigint()));
@@ -199,6 +199,7 @@ impl MessageB {
         //   };
         // let  = res1.unwrap();
         let c_b = alice_ek.add_two_plain_text(&b_c_a.unwrap(), &c_beta_tag);
+        dbg!(Scalar::<Secp256k1>::from_bytes(&scalar_bitint_beta_tag));
         let  beta_tag_fe = Scalar::<Secp256k1>::from_bytes(&scalar_bitint_beta_tag).unwrap();
         let beta = Scalar::<Secp256k1>::zero() - beta_tag_fe;
         // let beta = match beta_tag_fe {
