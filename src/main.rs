@@ -29,6 +29,18 @@ mod lib;
 use lib::{PubKey, PrivKey };
 
 
+use num_traits::One;
+
+fn sample_below(b: &BigInt) -> BigInt {
+    let mut rng = BigInt::one();
+    loop {
+        let r = &rng % b;
+        if r < *b {
+            return r;
+        }
+        rng += BigInt::one();
+    }
+}
 // fn to_bytes(obj: &Scalar<Secp256k1>) -> Vec<u8> {
 //     match obj {
 //         Scalar::<Secp256k1>::SecretKey(secret) => {
@@ -155,7 +167,7 @@ impl MessageB {
         // randomness: &BigNumber,
     ) -> (Self, Scalar<Secp256k1>) {
         // let res = alice_ek.n().to_string();
-        let beta_tag = &alice_ek.n;
+        let beta_tag = sample_below(&alice_ek.n); // random bigint
 
         let c_beta_tag = alice_ek.encrypt(&beta_tag); //error here. This will fail cause essentially, m given is same as alice_ek's n.
         let c_beta_tag = match c_beta_tag {
@@ -171,7 +183,7 @@ impl MessageB {
         let str_bigint = String::from(&beta_tag.to_string());
         let scalar_bitint_beta_tag: &[u8] = str_bigint.as_bytes(); //fixed
         
-        let beta_tag_fe = Scalar::<Secp256k1>::from_bytes(&scalar_bitint_beta_tag); // Bigint
+        // let beta_tag_fe = Scalar::<Secp256k1>::from_bytes(&scalar_bitint_beta_tag); // Bigint
 
         //let beta_tag_fe = Scalar::<Secp256k1>::from(&beta_tag);// Bigint
 
@@ -181,13 +193,18 @@ impl MessageB {
         let num_bigint_bca = BigInt::from_bytes_be(Sign::Plus, string_bigint_bca.as_bytes());
 
         let b_c_a = alice_ek.mult_two_plain_text(&m_a.c, &num_bigint_bca); //fixed
-        // let b_c_a = match b_c_a {
+        // let beta_tag_fe = match beta_tag_fe {
         //     Some(value) => value,
         //     None => panic!("Unexpected None value"), // Replace with appropriate handling for `None`
         //   };
         // let  = res1.unwrap();
         let c_b = alice_ek.add_two_plain_text(&b_c_a.unwrap(), &c_beta_tag);
-        let beta = Scalar::<Secp256k1>::zero() - &beta_tag_fe.unwrap();
+        let  beta_tag_fe = Scalar::<Secp256k1>::from_bytes(&scalar_bitint_beta_tag).unwrap();
+        let beta = Scalar::<Secp256k1>::zero() - beta_tag_fe;
+        // let beta = match beta_tag_fe {
+        //     Ok(value) => Scalar::<Secp256k1>::zero() - value,
+        //     Err(err) => panic!("Error: {:?}", err),
+        // };
 
         ((
             Self {c: c_b.unwrap()},
