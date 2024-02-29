@@ -32,13 +32,12 @@ use lib::{PubKey, PrivKey };
 use num_traits::One;
 
 fn sample_below(b: &BigInt) -> BigInt {
-    let mut rng = BigInt::one();
+    let mut rng = rand::thread_rng();
     loop {
-        let r = &rng % b;
-        if r < *b {
+        let r = rng.gen_bigint_range(BigInt::zero(), b);
+        if &r < b {
             return r;
         }
-        rng += BigInt::one();
     }
 }
 // fn to_bytes(obj: &Scalar<Secp256k1>) -> Vec<u8> {
@@ -168,7 +167,7 @@ impl MessageB {
     ) -> (Self, Scalar<Secp256k1>) {
         // let res = alice_ek.n().to_string();
         let beta_tag = sample_below(&alice_ek.n); // random bigint
-
+        dbg!(&beta_tag);
         let c_beta_tag = alice_ek.encrypt(&beta_tag); //error here. This will fail cause essentially, m given is same as alice_ek's n.
         let c_beta_tag = match c_beta_tag {
             Some(value) => value,
@@ -182,6 +181,7 @@ impl MessageB {
         
         let str_bigint = String::from(&beta_tag.to_string());
         let scalar_bitint_beta_tag: &[u8] = str_bigint.as_bytes(); //fixed
+        dbg!(&scalar_bitint_beta_tag);
         
         // let beta_tag_fe = Scalar::<Secp256k1>::from_bytes(&scalar_bitint_beta_tag); // Bigint
 
