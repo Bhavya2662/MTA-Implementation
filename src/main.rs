@@ -5,7 +5,7 @@
 use curv::arithmetic::traits::Samplable;
 use curv::elliptic::curves::{secp256_k1::Secp256k1, Point, Scalar};
 
-// use curv::BigInt;
+
 // use paillier::traits::EncryptWithChosenRandomness;
 // use paillier::{Add, Decrypt, Mul};
 // use paillier::{DecryptionKey, EncryptionKey, Paillier, Randomness, RawCiphertext, RawPlaintext};
@@ -17,7 +17,7 @@ use curv::elliptic::curves::{secp256_k1::Secp256k1, Point, Scalar};
 
 use std::str::FromStr;
 use num_bigint::{BigInt, BigUint, RandBigInt, ToBigInt, Sign};
-use curv::BigInt as NumBigInt;
+use curv::BigInt as curvBigInt;
 
 use crate::lib::make_key_pair;
 use rand::{Rng, thread_rng};
@@ -30,11 +30,12 @@ use lib::{PubKey, PrivKey };
 
 
 use num_traits::One;
-
+use num_traits::Zero;
 fn sample_below(b: &BigInt) -> BigInt {
     let mut rng = rand::thread_rng();
+    let zero = num_bigint::BigInt::zero();
     loop {
-        let r = rng.gen_bigint_range(BigInt::zero(), b);
+        let r = rng.gen_bigint_range(&zero, b);
         if &r < b {
             return r;
         }
@@ -81,16 +82,22 @@ pub struct MessageB {
     pub c: BigInt, // paillier encryption
 }
 
-fn convert_curv_to_num_bigint(curv_bigint: &NumBigInt) -> BigInt {
-    let mut num_bigint = BigInt::from(0);
-    let curv_bigint_bytes = curv_bigint.to_bytes();
-    for byte in curv_bigint_bytes.iter().rev() {
-        num_bigint = num_bigint << 8;
-        num_bigint += BigInt::from(*byte);
-    }
-    num_bigint
+// fn convert_curv_to_num_bigint(curv_bigint: &NumBigInt) -> BigInt {
+//     let mut num_bigint = BigInt::from(0);
+//     let curv_bigint_bytes = curv_bigint.to_bytes();
+//     for byte in curv_bigint_bytes.iter().rev() {
+//         num_bigint = num_bigint << 8;
+//         num_bigint += BigInt::from(*byte);
+//     }
+//     num_bigint
+// }
+fn convert_num_bigint_to_curv_bigint(num_bigint: BigInt) -> curvBigInt {
+    let mut bytes = num_bigint.to_bytes_be();
+    
+    let bytes_without_sign = &mut bytes.1;
+    bytes_without_sign.reverse();
+    curvBigInt::from_bytes(&bytes_without_sign)
 }
-
 
 impl MessageA {
     // pub fn a(
@@ -178,11 +185,13 @@ impl MessageB {
         // let big_vec: Vec<u8> = beta_tag.to_bytes() // Convert this big number to a big-endian byte sequence vec<u8>, the sign is not included
         // let big_integer =  BigInt::from_bytes_be(Sign::Plus, &big_vec);  // convert vev<u8> to &[u8] 
         
-        
-        let str_bigint = String::from(&beta_tag.to_string());
-        let scalar_bitint_beta_tag: &[u8] = str_bigint.as_bytes(); //fixed
-        dbg!(&scalar_bitint_beta_tag);
-        
+        //Error!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+        // let str_bigint = String::from(&beta_tag.to_string());
+        // let scalar_bitint_beta_tag: &[u8] = str_bigint.as_bytes(); //fixed
+        let res = convert_num_bigint_to_curv_bigint(beta_tag);
+        dbg!(&res);
+        dbg!(Scalar::<Secp256k1>::from(&res));
+        let  beta_tag_fe = Scalar::<Secp256k1>::from(&res);
         // let beta_tag_fe = Scalar::<Secp256k1>::from_bytes(&scalar_bitint_beta_tag); // Bigint
 
         //let beta_tag_fe = Scalar::<Secp256k1>::from(&beta_tag);// Bigint
@@ -199,8 +208,7 @@ impl MessageB {
         //   };
         // let  = res1.unwrap();
         let c_b = alice_ek.add_two_plain_text(&b_c_a.unwrap(), &c_beta_tag);
-        dbg!(Scalar::<Secp256k1>::from_bytes(&scalar_bitint_beta_tag));
-        let  beta_tag_fe = Scalar::<Secp256k1>::from_bytes(&scalar_bitint_beta_tag).unwrap();
+        
         let beta = Scalar::<Secp256k1>::zero() - beta_tag_fe;
         // let beta = match beta_tag_fe {
         //     Ok(value) => Scalar::<Secp256k1>::zero() - value,
@@ -224,17 +232,17 @@ impl MessageB {
         // let alice_share = Paillier::decrypt(dk, &RawCiphertext::from(self.c.clone()));
         // let g = Point::generator();
 
-        let str_bigint_alice_sh = String::from(&alice_share.to_string());
-        let scalar_bitint_alice_sh: &[u8] = str_bigint_alice_sh.as_bytes();
-
+        // let str_bigint_alice_sh = String::from(&alice_share.to_string());
+        // let scalar_bitint_alice_sh: &[u8] = str_bigint_alice_sh.as_bytes();
+        let res = convert_num_bigint_to_curv_bigint(alice_share);
         //let alice_bytes:&[u8] = &alice_share.unwrap();
         //let a_s = BigInt::from_bytes_be(Sign::Plus, &alice_bytes);
-        let alpha = Scalar::<Secp256k1>::from_bytes(scalar_bitint_alice_sh);
+        let alpha = Scalar::<Secp256k1>::from(&res);
         // let a_s = BigInt::from_bytes(&alice_share);
         // let alpha = Scalar::<Secp256k1>::from(a_s);
         // // let g_alpha = g * &alpha;
         
-        alpha.unwrap()
+        alpha
        
     }
 
@@ -270,9 +278,11 @@ fn main() {
   let alpha = m_b
       .get_alpha(&dk_alice, &alice_input);
 
-  let left = alpha + beta;
+//   let left = alpha + beta;
+let left  = alpha.add(&beta);
 
-  let right = alice_input * bob_input;
+//   let right = alice_input * bob_input;
+let right = alice_input.mul(&bob_input);
 
   assert_eq!(left, right);
 }
