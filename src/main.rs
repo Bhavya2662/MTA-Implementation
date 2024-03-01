@@ -4,7 +4,8 @@
 #![allow(unused_parens)]
 use curv::arithmetic::traits::Samplable;
 use curv::elliptic::curves::{secp256_k1::Secp256k1, Point, Scalar};
-
+use std::ops::Add;
+use std::ops::Mul;
 
 // use paillier::traits::EncryptWithChosenRandomness;
 // use paillier::{Add, Decrypt, Mul};
@@ -91,12 +92,20 @@ pub struct MessageB {
 //     }
 //     num_bigint
 // }
-fn convert_num_bigint_to_curv_bigint(num_bigint: BigInt) -> curvBigInt {
-    let mut bytes = num_bigint.to_bytes_be();
+// fn convert_num_bigint_to_curv_bigint(num_bigint: BigInt) -> curvBigInt {
+//     let mut bytes = num_bigint.to_bytes_be();
     
-    let bytes_without_sign = &mut bytes.1;
-    bytes_without_sign.reverse();
-    curvBigInt::from_bytes(&bytes_without_sign)
+//     let bytes_without_sign = &mut bytes.1;
+//     bytes_without_sign.reverse();
+//     curvBigInt::from_bytes(&bytes_without_sign)
+// }
+fn convert_num_bigint_to_curv_bigint(num_bigint: BigInt) -> curvBigInt {
+    let mut bytes = num_bigint.to_str_radix(16);
+    let curvbigint = curvBigInt::from_hex(&bytes);
+    curvbigint.unwrap()
+    // let bytes_without_sign = &mut bytes.1;
+    // bytes_without_sign.reverse();
+    // curvBigInt::from_bytes(&bytes_without_sign)
 }
 
 impl MessageA {
