@@ -99,7 +99,7 @@ pub struct MessageB {
 //     bytes_without_sign.reverse();
 //     curvBigInt::from_bytes(&bytes_without_sign)
 // }
-fn convert_num_bigint_to_curv_bigint(num_bigint: BigInt) -> curvBigInt {
+fn convert_num_bigint_to_curv_bigint(num_bigint: &BigInt) -> curvBigInt {
     let mut bytes = num_bigint.to_str_radix(16);
     let curvbigint = curvBigInt::from_hex(&bytes);
     curvbigint.unwrap()
@@ -197,10 +197,10 @@ impl MessageB {
         //Error!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
         // let str_bigint = String::from(&beta_tag.to_string());
         // let scalar_bitint_beta_tag: &[u8] = str_bigint.as_bytes(); //fixed
-        let res = convert_num_bigint_to_curv_bigint(beta_tag);
+        let res = convert_num_bigint_to_curv_bigint(&beta_tag);
         dbg!(&res);
         dbg!(Scalar::<Secp256k1>::from(&res));
-        let  beta_tag_fe = Scalar::<Secp256k1>::from(&res);
+        let  beta_tag_fe = Scalar::<Secp256k1>::from(res);
         // let beta_tag_fe = Scalar::<Secp256k1>::from_bytes(&scalar_bitint_beta_tag); // Bigint
 
         //let beta_tag_fe = Scalar::<Secp256k1>::from(&beta_tag);// Bigint
@@ -218,7 +218,7 @@ impl MessageB {
         // let  = res1.unwrap();
         let c_b = alice_ek.add_two_plain_text(&b_c_a.unwrap(), &c_beta_tag);
         
-        let beta = Scalar::<Secp256k1>::zero() - beta_tag_fe;
+        let beta = Scalar::<Secp256k1>::zero() - &beta_tag_fe;
         // let beta = match beta_tag_fe {
         //     Ok(value) => Scalar::<Secp256k1>::zero() - value,
         //     Err(err) => panic!("Error: {:?}", err),
@@ -237,13 +237,13 @@ impl MessageB {
     ) -> Scalar<Secp256k1>{
 
 
-        let alice_share = dk.decrypt(&self.c).unwrap();
+        let alice_share = dk.decrypt(&self.c.clone()).unwrap();
         // let alice_share = Paillier::decrypt(dk, &RawCiphertext::from(self.c.clone()));
         // let g = Point::generator();
 
         // let str_bigint_alice_sh = String::from(&alice_share.to_string());
         // let scalar_bitint_alice_sh: &[u8] = str_bigint_alice_sh.as_bytes();
-        let res = convert_num_bigint_to_curv_bigint(alice_share);
+        let res = convert_num_bigint_to_curv_bigint(&alice_share);
         //let alice_bytes:&[u8] = &alice_share.unwrap();
         //let a_s = BigInt::from_bytes_be(Sign::Plus, &alice_bytes);
         let alpha = Scalar::<Secp256k1>::from(&res);
@@ -278,20 +278,55 @@ fn main() {
   let (ek_alice, dk_alice) = generate_init();
     //dbg!(&ek_alice);
     //dbg!(&dk_alice);
+    let ek_a = ek_alice.clone();
+    let q_num = ek_a.n;
+    let q = convert_num_bigint_to_curv_bigint(&q_num);
 
   let bob_input = Scalar::<Secp256k1>::random();
   let m_a = MessageA::a(&alice_input, &ek_alice);
 
   let (m_b, beta) = MessageB::b(&bob_input, &ek_alice, m_a);
-
+let beta_bn = beta.to_bigint();
+let beta_bnn = beta_bn % &q;
+let beta = Scalar::<Secp256k1>::from(beta_bnn);
   let alpha = m_b
       .get_alpha(&dk_alice, &alice_input);
+let alpha_bn = alpha.to_bigint();
+let alpha_bnn = alpha_bn % &q;
+let alpha = Scalar::<Secp256k1>::from(alpha_bnn);
 
 //   let left = alpha + beta;
-let left  = alpha.add(&beta);
+let res1 = alpha+beta;
+let res1_bn = res1.to_bigint();
 
+let left  = Scalar::<Secp256k1>::from(res1_bn % &q);
+
+let res2 = alice_input * bob_input;
+let res2_bn = res2.to_bigint();
 //   let right = alice_input * bob_input;
-let right = alice_input.mul(&bob_input);
+let right = Scalar::<Secp256k1>::from(res2_bn % &q) ;
 
   assert_eq!(left, right);
+
+// Encrytion and decryption testing
+// let plaintext = BigInt::from(1234);
+//         let (public_key, private_key) = generate_init();
+        
+//         let ciphertext = public_key.encrypt(&plaintext);
+//         let decrypted = private_key.decrypt(&ciphertext.unwrap()).unwrap();
+        
+//         assert_eq!(plaintext, decrypted);
+// let plaintext_a = BigInt::from(1234);
+//     let plaintext_b = BigInt::from(5678);
+//     let (public_key, private_key) = generate_init();
+    
+//     let ciphertext_a = public_key.encrypt(&plaintext_a).unwrap();
+//     let ciphertext_b = public_key.encrypt(&plaintext_b).unwrap();
+    
+//     let sum_ciphertext = public_key.add(&ciphertext_a, &ciphertext_b).unwrap();
+//     let sum_decrypted = private_key.decrypt(&sum_ciphertext).unwrap();
+    
+//     let sum_plaintext = plaintext_a + plaintext_b;
+    
+//     assert_eq!(sum_plaintext, sum_decrypted);
 }
