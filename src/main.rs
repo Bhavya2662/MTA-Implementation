@@ -129,7 +129,7 @@ impl MessageA {
         //dbg!(&biggg);
         // dbg!(&hex_alice_bigint);
         let bigint_from_hex = BigInt::parse_bytes(hex_alice_bigint.as_bytes(), 16).unwrap();
-        println!("BigInt from hex: {}", bigint_from_hex); //correct value of bigint
+        // println!("BigInt from hex: {}", bigint_from_hex); //correct value of bigint
         // dbg!(&bigint_from_hex);
         //dbg!(&convert_curv_to_num_bigint(&a.to_bigint()));
         //let res = alice_ek.encrypt(&a.to_bigint());
@@ -183,7 +183,7 @@ impl MessageB {
     ) -> (Self, Scalar<Secp256k1>) {
         // let res = alice_ek.n().to_string();
         let beta_tag = sample_below(&alice_ek.n); // random bigint
-        dbg!(&beta_tag);
+        // dbg!(&beta_tag);
         let c_beta_tag = alice_ek.encrypt(&beta_tag); //error here. This will fail cause essentially, m given is same as alice_ek's n.
         let c_beta_tag = match c_beta_tag {
             Some(value) => value,
@@ -198,8 +198,8 @@ impl MessageB {
         // let str_bigint = String::from(&beta_tag.to_string());
         // let scalar_bitint_beta_tag: &[u8] = str_bigint.as_bytes(); //fixed
         let res = convert_num_bigint_to_curv_bigint(&beta_tag);
-        dbg!(&res);
-        dbg!(Scalar::<Secp256k1>::from(&res));
+        // dbg!(&res);
+        // dbg!(Scalar::<Secp256k1>::from(&res));
         let  beta_tag_fe = Scalar::<Secp256k1>::from(res);
         // let beta_tag_fe = Scalar::<Secp256k1>::from_bytes(&scalar_bitint_beta_tag); // Bigint
 
@@ -299,7 +299,7 @@ let alpha = Scalar::<Secp256k1>::from(alpha_bnn);
 let res1 = alpha+beta;
 let res1_bn = res1.to_bigint();
 
-let left  = Scalar::<Secp256k1>::from(res1_bn % &q);
+let left  = Scalar::<Secp256k1>::from(res1_bn);
 
 let res2 = alice_input * bob_input;
 let res2_bn = res2.to_bigint();
