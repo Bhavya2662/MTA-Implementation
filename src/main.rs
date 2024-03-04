@@ -29,7 +29,7 @@ use generic_array::{GenericArray, typenum::U32};
 mod lib;
 use lib::{PubKey, PrivKey };
 
-
+use num_traits::Pow;
 use num_traits::One;
 use num_traits::Zero;
 fn sample_below(b: &BigInt) -> BigInt {
@@ -75,23 +75,25 @@ fn scalar_to_string(scalar: &Scalar<Secp256k1>) -> String {
   }
 // #[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct MessageA {
-    pub c: BigInt,                     // paillier encryption
+    pub c: BigInt,    
+    pub ans: BigInt,                 // paillier encryption
   }
 
 // #[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct MessageB {
-    pub c: BigInt, // paillier encryption
+    pub c: BigInt,
+     // paillier encryption
 }
 
-// fn convert_curv_to_num_bigint(curv_bigint: &NumBigInt) -> BigInt {
-//     let mut num_bigint = BigInt::from(0);
-//     let curv_bigint_bytes = curv_bigint.to_bytes();
-//     for byte in curv_bigint_bytes.iter().rev() {
-//         num_bigint = num_bigint << 8;
-//         num_bigint += BigInt::from(*byte);
-//     }
-//     num_bigint
-// }
+fn convert_curv_to_num_bigint(curv_bigint: &curvBigInt) -> BigInt {
+    let mut num_bigint = BigInt::from(0);
+    let curv_bigint_bytes = curv_bigint.to_bytes();
+    for byte in curv_bigint_bytes.iter().rev() {
+        num_bigint = num_bigint << 8;
+        num_bigint += BigInt::from(*byte);
+    }
+    num_bigint
+}
 // fn convert_num_bigint_to_curv_bigint(num_bigint: BigInt) -> curvBigInt {
 //     let mut bytes = num_bigint.to_bytes_be();
     
@@ -129,6 +131,7 @@ impl MessageA {
         //dbg!(&biggg);
         // dbg!(&hex_alice_bigint);
         let bigint_from_hex = BigInt::parse_bytes(hex_alice_bigint.as_bytes(), 16).unwrap();
+        dbg!(&bigint_from_hex.clone().bits());
         // println!("BigInt from hex: {}", bigint_from_hex); //correct value of bigint
         // dbg!(&bigint_from_hex);
         //dbg!(&convert_curv_to_num_bigint(&a.to_bigint()));
@@ -136,7 +139,9 @@ impl MessageA {
         //let res = alice_ek.encrypt(&convert_curv_to_num_bigint(&a.to_bigint()));
 
         // have to convert curv::BigInt to num_bigint without str use. 
-        let res = alice_ek.encrypt(&bigint_from_hex); //error here. FIXED
+        let res = alice_ek.encrypt(&bigint_from_hex);
+        dbg!(&res.clone().unwrap().bits()); 
+        //error here. FIXED
         // let res = match res {
         //     Some(value) => value,
         //     None => panic!("Unexpected None value"), // Replace with appropriate handling for `None`
@@ -152,7 +157,8 @@ impl MessageA {
         // .into_owned();
 
         Self {
-            c: res.unwrap(),// Option<BigInt>
+            c: res.unwrap(),
+            ans: bigint_from_hex,// Option<BigInt>
         }
     }
 }
@@ -179,10 +185,19 @@ impl MessageB {
         b: &Scalar<Secp256k1>,
         alice_ek: &PubKey,
         m_a: MessageA,
+        q: BigInt
         // randomness: &BigNumber,
     ) -> (Self, Scalar<Secp256k1>) {
         // let res = alice_ek.n().to_string();
-        let beta_tag = sample_below(&alice_ek.n); // random bigint
+        // let one_int : u16 = 1; 
+        // let one_bigint = BigInt::one();
+        // let range_beta = &alice_ek.n - ((q.clone()-one_bigint.clone()).mul(q.clone()-one_bigint.clone()));
+        let q_minus_one = &q.clone() - 1;
+        let q_minus_one_squared = &q_minus_one * &q_minus_one;
+
+        // Calculate n - (q - 1)^2
+        let range_beta = &alice_ek.n.clone() - &q_minus_one_squared;
+        let beta_tag = sample_below(&range_beta); // random bigint
         // dbg!(&beta_tag);
         let c_beta_tag = alice_ek.encrypt(&beta_tag); //error here. This will fail cause essentially, m given is same as alice_ek's n.
         let c_beta_tag = match c_beta_tag {
@@ -210,14 +225,29 @@ impl MessageB {
         let string_bigint_bca = String::from(b_bn.to_string());
         let num_bigint_bca = BigInt::from_bytes_be(Sign::Plus, string_bigint_bca.as_bytes());
 
-        let b_c_a = alice_ek.mult_two_plain_text(&m_a.c, &num_bigint_bca); //fixed
+        let b_c_a = alice_ek.mult_two_plain_text(&m_a.c, &num_bigint_bca); //fixed 
         // let beta_tag_fe = match beta_tag_fe {
         //     Some(value) => value,
         //     None => panic!("Unexpected None value"), // Replace with appropriate handling for `None`
         //   };
         // let  = res1.unwrap();
         let c_b = alice_ek.add_two_plain_text(&b_c_a.unwrap(), &c_beta_tag);
-        
+        // dbg!(&c_b.clone().unwrap().bits()); //509 bits
+        // //a*b + B' = c_b
+        // dbg!(&m_a.ans);
+        // dbg!(&num_bigint_bca);
+        let ab = m_a.ans * num_bigint_bca;
+        let ab = ab % q.clone();
+        // dbg!(&ab);
+        // dbg!(&beta_tag);
+        let left = ab + beta_tag;
+        let left = left % q.clone();
+        // dbg!(&left);
+        // dbg!(&left.bits());
+        let enc_ab_betatag = alice_ek.encrypt(&left);
+        // dbg!(&enc_ab_betatag.clone().unwrap().bits());
+        // dbg!(&c_b.clone().unwrap().bits());
+        // assert_eq!(enc_ab_betatag,c_b);
         let beta = Scalar::<Secp256k1>::zero() - &beta_tag_fe;
         // let beta = match beta_tag_fe {
         //     Ok(value) => Scalar::<Secp256k1>::zero() - value,
@@ -274,48 +304,57 @@ pub fn generate_init() -> (PubKey, PrivKey) {
 }
 
 fn main() {
-  let alice_input = Scalar::<Secp256k1>::random();
-  let (ek_alice, dk_alice) = generate_init();
+    let alice_input = Scalar::<Secp256k1>::random();
+    let (ek_alice, dk_alice) = generate_init();
     //dbg!(&ek_alice);
     //dbg!(&dk_alice);
     let ek_a = ek_alice.clone();
-    let q_num = ek_a.n;
-    let q = convert_num_bigint_to_curv_bigint(&q_num);
+    let q_big_int = BigInt::parse_bytes(b"115792089237316195423570985008687907852837564279074904382605163141518161494337", 10).unwrap();    
+    // let q_num = ek_a.n;
+    dbg!(&ek_a.n.bits());
+    let q = convert_num_bigint_to_curv_bigint(&q_big_int);
 
-  let bob_input = Scalar::<Secp256k1>::random();
-  let m_a = MessageA::a(&alice_input, &ek_alice);
+    let bob_input = Scalar::<Secp256k1>::random();
+    let m_a = MessageA::a(&alice_input, &ek_alice);
 
-  let (m_b, beta) = MessageB::b(&bob_input, &ek_alice, m_a);
-let beta_bn = beta.to_bigint();
-let beta_bnn = beta_bn % &q;
-let beta = Scalar::<Secp256k1>::from(beta_bnn);
-  let alpha = m_b
-      .get_alpha(&dk_alice, &alice_input);
-let alpha_bn = alpha.to_bigint();
-let alpha_bnn = alpha_bn % &q;
-let alpha = Scalar::<Secp256k1>::from(alpha_bnn);
+    let (m_b, beta) = MessageB::b(&bob_input, &ek_alice, m_a, q_big_int);
+    dbg!(&beta);
+    
+    let beta_bn = beta.to_bigint();
+    // dbg!(&beta_bn);
+    // let conv = Scalar::<Secp256k1>::from(&beta_bn);
+    // dbg!(&conv);
+    let beta_bnn = beta_bn % &q;
+    let beta = Scalar::<Secp256k1>::from(beta_bnn);
 
-//   let left = alpha + beta;
-let res1 = alpha+beta;
-let res1_bn = res1.to_bigint();
+    let alpha = m_b
+        .get_alpha(&dk_alice, &alice_input);
+    let alpha_bn = alpha.to_bigint();
+    let alpha_bnn = alpha_bn % &q;
+    let alpha = Scalar::<Secp256k1>::from(alpha_bnn);
 
-let left  = Scalar::<Secp256k1>::from(res1_bn);
+    let left = alpha + beta;
+    // let res1 = alpha+beta;
+    // let res1_bn = res1.to_bigint();
 
-let res2 = alice_input * bob_input;
-let res2_bn = res2.to_bigint();
-//   let right = alice_input * bob_input;
-let right = Scalar::<Secp256k1>::from(res2_bn % &q) ;
+    // let left  = Scalar::<Secp256k1>::from(res1);
 
-  assert_eq!(left, right);
+    let res2 = alice_input * bob_input;
+    let res2_bn = res2.to_bigint();
+    //   let right = alice_input * bob_input;
+    let right = Scalar::<Secp256k1>::from(res2_bn % &q) ;
+    dbg!(convert_curv_to_num_bigint(&left.to_bigint()).bits());
+    dbg!(convert_curv_to_num_bigint(&right.to_bigint()).bits());
+    assert_eq!(left, right);
 
 // Encrytion and decryption testing
-// let plaintext = BigInt::from(1234);
-//         let (public_key, private_key) = generate_init();
-        
-//         let ciphertext = public_key.encrypt(&plaintext);
-//         let decrypted = private_key.decrypt(&ciphertext.unwrap()).unwrap();
-        
-//         assert_eq!(plaintext, decrypted);
+    // let plaintext = BigInt::from(1234);
+    // let (public_key, private_key) = generate_init();
+    
+    // let ciphertext = public_key.encrypt(&plaintext);
+    // let decrypted = private_key.decrypt(&ciphertext.unwrap()).unwrap();
+    // dbg!(&decrypted);
+    // assert_eq!(plaintext, decrypted);
 // let plaintext_a = BigInt::from(1234);
 //     let plaintext_b = BigInt::from(5678);
 //     let (public_key, private_key) = generate_init();
